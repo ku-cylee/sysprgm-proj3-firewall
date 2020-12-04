@@ -118,8 +118,8 @@ static const struct file_operations add_fops = {
 };
 
 static int del_open(struct inode *inode, struct file *file) {
-    printk(KERN_INFO "DEL OPEN\n");
-    return 0;
+	printk(KERN_INFO "DEL OPEN\n");
+	return 0;
 }
 
 static ssize_t del_write(struct file *file, const char __user *user_buf,
@@ -137,19 +137,19 @@ static ssize_t del_write(struct file *file, const char __user *user_buf,
 }
 
 static const struct file_operations del_fops = {
-    .owner = THIS_MODULE,
-    .open = del_open,
-    .write = del_write,
+	.owner = THIS_MODULE,
+	.open = del_open,
+	.write = del_write,
 };
 
 static int show_open(struct inode *inode, struct file *file) {
-    printk(KERN_INFO "SHOW OPEN\n");
-    return 0;
+	printk(KERN_INFO "SHOW OPEN\n");
+	return 0;
 }
 
 static ssize_t show_read(struct file *file, char __user *user_buf,
                                             size_t count, loff_t *ppos) {
-    if (index >= ruleList->size) {
+	if (index >= ruleList->size) {
 		index = 0;
 		return 0;
 	}
@@ -162,9 +162,9 @@ static ssize_t show_read(struct file *file, char __user *user_buf,
 }
 
 static const struct file_operations show_fops = {
-    .owner = THIS_MODULE,
-    .open = show_open,
-    .read = show_read,
+	.owner = THIS_MODULE,
+	.open = show_open,
+	.read = show_read,
 };
 
 
