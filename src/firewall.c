@@ -64,7 +64,7 @@ static struct nf_hook_ops proxy_ops = {
 /////////////////// RULES ADT
 
 typedef struct rule {
-	int port;
+	unsigned short port;
 	char type;
 	struct rule *next;
 } Rule;
@@ -82,13 +82,13 @@ RuleList *create_rule_list(void) {
 	return lst;
 }
 
-Rule *find_rule(RuleList *lst, int port, char type) {
+Rule *find_rule(RuleList *lst, unsigned short port, char type) {
 	Rule *rule;
 	for (rule = lst->head; rule != NULL && !(rule->port == port && rule->type == type); rule = rule->next);
 	return rule;
 }
 
-int insert_rule(RuleList *lst, int port, char type) {
+int insert_rule(RuleList *lst, unsigned short port, char type) {
 	Rule *rule;
 
 	if (type != INBOUND_TYPE && type != OUTBOUND_TYPE && type != FORWARD_TYPE && type != PROXY_TYPE) return 0;
@@ -155,12 +155,13 @@ static int add_open(struct inode *inode, struct file *file) {
 
 static ssize_t add_write(struct file *file, const char __user *user_buf,
                                             size_t count, loff_t *ppos) {
-	int len = 0, port;
+	int len = 0;
+	unsigned short port;
 	char type, buffer[BUFFER_SIZE] = { 0 };
 
 	if (copy_from_user(buffer, user_buf, count)) return 0;
 
-	sscanf(buffer, "%c %d", &type, &port);
+	sscanf(buffer, "%c %hu", &type, &port);
 	len = strlen(buffer);
 	insert_rule(rule_list, port, type);
 
