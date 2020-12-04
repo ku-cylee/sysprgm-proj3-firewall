@@ -73,16 +73,22 @@ int removeRule(RuleList *lst, int index) {
 	if (index + 1 == lst->size) lst->tail = prev;
 
 	lst->size--;
+
+	kfree(cur);
 	return 1;
 }
 
-ssize_t copyRule(Rule **rule, char __user *user_buffer) {
-	return 0;
+ssize_t copyRule(Rule **rulePtr, char __user *user_buffer, int *index) {
+	int len = sprintf(user_buffer, "%d(%c): %d\n", *index, (*rulePtr)->type, (*rulePtr)->port);
+	(*index)++;
+	return len;
 }
 
 /////////////////// KERNEL MODULE
 
 static RuleList *ruleList;
+static Rule *currentRule = NULL;
+static int index = 0;
 
 static struct proc_dir_entry *proc_dir, *add_file, *del_file, *show_file;
 
@@ -118,7 +124,15 @@ static int del_open(struct inode *inode, struct file *file) {
 
 static ssize_t del_write(struct file *file, const char __user *user_buf,
                                             size_t count, loff_t *ppos) {
-    printk(KERN_INFO "DEL WRITE\n");
+	int len = 0, index;
+	char buffer[BUFFER_SIZE] = { 0 };
+
+	if (copy_from_user(buffer, user_buf, count)) return 0;
+
+	sscanf(buffer, "%d", &index);
+	len = strlen(buffer);
+
+	removeRule(ruleList, index);
     return count;
 }
 
@@ -134,9 +148,17 @@ static int show_open(struct inode *inode, struct file *file) {
 }
 
 static ssize_t show_read(struct file *file, char __user *user_buf,
-                                        size_t count, loff_t *ppos) {
-    printk(KERN_INFO "SHOW READ\n");
-    return count;
+                                            size_t count, loff_t *ppos) {
+    if (index >= ruleList->size) {
+		index = 0;
+		return 0;
+	}
+
+	if (index == 0) currentRule = ruleList->head;
+	else currentRule = currentRule->next;
+
+	int len = copyRule(&currentRule, user_buf, &index);
+	return len;
 }
 
 static const struct file_operations show_fops = {
