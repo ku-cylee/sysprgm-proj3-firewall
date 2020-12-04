@@ -108,13 +108,101 @@ void destroy_rule_list(RuleList *lst) {
 
 /////////////////// NETFILTER
 
-static unsigned int inbound_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+unsigned int addr_to_net(char *addr) {
+	unsigned char arr[4];
+	sscanf(addr, "%d.%d.%d.%d", &arr[0], &arr[1], &arr[2], &arr[3]);
+	return *(unsigned int *)arr;
+}
 
-static unsigned int outbound_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+void net_to_addr(unsigned int net, char *addr) {
+	unsigned char *tmp = (unsigned char *)&net;
+	sprintf(addr, "%u.%u.%u.%u", tmp[0], tmp[1], tmp[2], tmp[3]);
+}
 
-static unsigned int forward_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+typedef struct {
+	struct iphdr *ip_header;
+	struct tcphdr *tcp_header;
+	char src_addr[128], dst_addr[128];
+	unsigned short src_port, dst_port;
+} PacketData;
 
-static unsigned int proxy_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+PacketData *parse_socket_buffer(struct sk_buff *skb) {
+	PacketData *packet;
+
+	packet->ip_header = ip_hdr(skb);
+	packet->tcp_header = tcp_hdr(skb);
+
+	net_to_addr((unsigned int)packet->ip_header->saddr, packet->src_addr);
+	net_to_addr((unsigned int)packet->ip_header->daddr, packet->dst_addr);
+
+	packet->src_port = htons(packet->tcp_header->source);
+	packet->dst_port = htons(packet->tcp_header->dest);
+}
+
+void print_log(PacketData *pkt, char *rule_type) {
+	printk(KERN_NOTICE LOG_FORMAT,
+	       rule_type, pkt->ip_header->protocol,
+	       pkt->src_port, pkt->dst_port, pkt->src_addr, pkt->dst_addr);
+}
+
+static unsigned int inbound_hook(void *priv,
+                                 struct sk_buff *skb,
+                                 const struct nf_hook_state *state) {
+	PacketData *packet = parse_socket_buffer(skb);
+	Rule *rule = find_rule(rule_list, packet->src_port, INBOUND_TYPE);
+
+	if (rule == NULL) {
+		print_log(packet, "INBOUND");
+		return NF_ACCEPT;
+	} else {
+		print_log(packet, "DROP(INBOUND)");
+		return NF_DROP;
+	}
+}
+
+static unsigned int outbound_hook(void *priv,
+                                 struct sk_buff *skb,
+                                 const struct nf_hook_state *state) {
+	PacketData *packet = parse_socket_buffer(skb);
+	Rule *rule = find_rule(rule_list, packet->dst_port, OUTBOUND_TYPE);
+
+	if (rule == NULL) {
+		print_log(packet, "OUTBOUND");
+		return NF_ACCEPT;
+	} else {
+		print_log(packet, "DROP(OUTBOUND)");
+		return NF_DROP;
+	}
+}
+
+static unsigned int forward_hook(void *priv,
+                                 struct sk_buff *skb,
+                                 const struct nf_hook_state *state) {
+	PacketData *packet = parse_socket_buffer(skb);
+	Rule *rule = find_rule(rule_list, packet->dst_port, FORWARD_TYPE);
+
+	if (rule == NULL) {
+		print_log(packet, "FORWARD");
+		return NF_ACCEPT;
+	} else {
+		print_log(packet, "DROP(FORWARD)");
+		return NF_DROP;
+	}
+}
+
+static unsigned int proxy_hook(void *priv,
+                                 struct sk_buff *skb,
+                                 const struct nf_hook_state *state) {
+	PacketData *packet = parse_socket_buffer(skb);
+	Rule *rule = find_rule(rule_list, packet->src_port, PROXY_TYPE);
+
+	if (rule != NULL) {
+		packet->tcp_header->dest = packet->tcp_header->source;
+		print_log(packet, "PROXY(INBOUND)");
+	}
+
+	return NF_ACCEPT;
+}
 
 static struct nf_hook_ops inbound_ops = {
 	.hook = inbound_hook,
