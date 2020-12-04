@@ -4,6 +4,9 @@
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/netfilter.h>
+#include <linux/ip.h>
+#include <linux/tcp.h>
 
 #define PROC_DIRNAME "group16"
 #define ADD_FILENAME "add"
@@ -15,7 +18,48 @@
 #define FORWARD_TYPE  'F'
 #define PROXY_TYPE    'P'
 
+#define PROXY_DST_ADDR "131.1.1.1"
+#define LOG_FORMAT     "%-15s:%2u,%5d,%5d,%-15s,%-15s\n"
+
 #define BUFFER_SIZE 64
+
+/////////////////// NETFILTER
+
+static unsigned int inbound_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+
+static unsigned int outbound_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+
+static unsigned int forward_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+
+static unsigned int proxy_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+
+static struct nf_hook_ops inbound_ops = {
+	.hook = inbound_hook,
+	.pf = PF_INET,
+	.hooknum = NF_INET_LOCAL_IN,
+	.priority = 1,
+};
+
+static struct nf_hook_ops outbound_ops = {
+	.hook = outbound_hook,
+	.pf = PF_INET,
+	.hooknum = NF_INET_LOCAL_OUT,
+	.priority = 1,
+};
+
+static struct nf_hook_ops forward_ops = {
+	.hook = forward_hook,
+	.pf = PF_INET,
+	.hooknum = NF_INET_FORWARD,
+	.priority = 1,
+};
+
+static struct nf_hook_ops proxy_ops = {
+	.hook = proxy_hook,
+	.pf = PF_INET,
+	.hooknum = NF_INET_PRE_ROUTING,
+	.priority = 1,
+};
 
 /////////////////// RULES ADT
 
@@ -177,6 +221,11 @@ static int __init firewall_init(void) {
 	show_file = proc_create(SHOW_FILENAME, 0777, proc_dir, &show_fops);
 
 	rule_list = create_rule_list();
+
+	nf_register_hook(&inbound_ops);
+	nf_register_hook(&outbound_ops);
+	nf_register_hook(&forward_ops);
+	nf_register_hook(&proxy_ops);
 	return 0;
 }
 
@@ -185,6 +234,11 @@ static void __exit firewall_exit(void) {
 	remove_proc_entry(DEL_FILENAME, proc_dir);
 	remove_proc_entry(SHOW_FILENAME, proc_dir);
 	remove_proc_entry(PROC_DIRNAME, NULL);
+
+	nf_unregister_hook(&inbound_ops);
+	nf_unregister_hook(&outbound_ops);
+	nf_unregister_hook(&forward_ops);
+	nf_unregister_hook(&proxy_ops);
 	return;
 }
 
