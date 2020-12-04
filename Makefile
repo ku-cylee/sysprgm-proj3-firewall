@@ -1,9 +1,10 @@
-obj-m += ./src/netfilter.o
+obj-m += src/netfilter.o
 KERNEL_DIR = /lib/modules/$(shell uname -r)/build
+PWD = $(shell pwd)
 SRC_DIR = ./src
 
 all:
-	$(MAKE) -C $(KERNEL_DIR) M=$(shell pwd) SRCDIR=$(SRC_DIR) modules
+	$(MAKE) -C $(KERNEL_DIR) M=$(PWD) SRCDIR=$(SRC_DIR) modules
 
 clean:
-	rm  -rf *.o *.ko    *.mod.* *.symvers   *.order
+	rm -rf *.o *.ko *.mod.* *.symvers *.order
