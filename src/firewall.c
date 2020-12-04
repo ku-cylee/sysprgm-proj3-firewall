@@ -130,6 +130,16 @@ ssize_t copy_rule(Rule **prule, char __user *user_buffer, int *index) {
 	return len;
 }
 
+void destroy_rule_list(RuleList *lst) {
+	Rule *tmp, *rule = lst->head;
+	while (rule != NULL) {
+		tmp = rule;
+		rule = rule->next;
+		kfree(tmp);
+	}
+	kfree(lst);
+}
+
 /////////////////// KERNEL MODULE
 
 static RuleList *rule_list;
@@ -234,6 +244,8 @@ static void __exit firewall_exit(void) {
 	remove_proc_entry(DEL_FILENAME, proc_dir);
 	remove_proc_entry(SHOW_FILENAME, proc_dir);
 	remove_proc_entry(PROC_DIRNAME, NULL);
+
+	destroy_rule_list(rule_list);
 
 	nf_unregister_hook(&inbound_ops);
 	nf_unregister_hook(&outbound_ops);
