@@ -1,4 +1,4 @@
-obj-m += src/netfilter.o
+obj-m += src/firewall.o
 KERNEL_DIR = /lib/modules/$(shell uname -r)/build
 PWD = $(shell pwd)
 SRC_DIR = ./src
