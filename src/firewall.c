@@ -122,6 +122,7 @@ void net_to_addr(unsigned int net, char *addr) {
 typedef struct {
 	struct iphdr *ip_header;
 	struct tcphdr *tcp_header;
+	int protocol;
 	char src_addr[128], dst_addr[128];
 	unsigned short src_port, dst_port;
 } PacketData;
@@ -137,11 +138,13 @@ PacketData *parse_socket_buffer(struct sk_buff *skb) {
 
 	packet->src_port = htons(packet->tcp_header->source);
 	packet->dst_port = htons(packet->tcp_header->dest);
+
+	packet->protocol = ip_header->protocol;
 }
 
 void print_log(PacketData *pkt, char *rule_type) {
 	printk(KERN_NOTICE LOG_FORMAT,
-	       rule_type, pkt->ip_header->protocol,
+	       rule_type, pkt->protocol,
 	       pkt->src_port, pkt->dst_port, pkt->src_addr, pkt->dst_addr);
 }
 
@@ -161,8 +164,8 @@ static unsigned int inbound_hook(void *priv,
 }
 
 static unsigned int outbound_hook(void *priv,
-                                 struct sk_buff *skb,
-                                 const struct nf_hook_state *state) {
+                                  struct sk_buff *skb,
+                                  const struct nf_hook_state *state) {
 	PacketData *packet = parse_socket_buffer(skb);
 	Rule *rule = find_rule(rule_list, packet->dst_port, OUTBOUND_TYPE);
 
@@ -191,8 +194,8 @@ static unsigned int forward_hook(void *priv,
 }
 
 static unsigned int proxy_hook(void *priv,
-                                 struct sk_buff *skb,
-                                 const struct nf_hook_state *state) {
+                               struct sk_buff *skb,
+                               const struct nf_hook_state *state) {
 	PacketData *packet = parse_socket_buffer(skb);
 	Rule *rule = find_rule(rule_list, packet->src_port, PROXY_TYPE);
 
