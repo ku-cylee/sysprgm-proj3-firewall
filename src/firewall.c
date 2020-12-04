@@ -23,43 +23,9 @@
 
 #define BUFFER_SIZE 64
 
-/////////////////// NETFILTER
-
-static unsigned int inbound_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
-
-static unsigned int outbound_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
-
-static unsigned int forward_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
-
-static unsigned int proxy_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
-
-static struct nf_hook_ops inbound_ops = {
-	.hook = inbound_hook,
-	.pf = PF_INET,
-	.hooknum = NF_INET_LOCAL_IN,
-	.priority = 1,
-};
-
-static struct nf_hook_ops outbound_ops = {
-	.hook = outbound_hook,
-	.pf = PF_INET,
-	.hooknum = NF_INET_LOCAL_OUT,
-	.priority = 1,
-};
-
-static struct nf_hook_ops forward_ops = {
-	.hook = forward_hook,
-	.pf = PF_INET,
-	.hooknum = NF_INET_FORWARD,
-	.priority = 1,
-};
-
-static struct nf_hook_ops proxy_ops = {
-	.hook = proxy_hook,
-	.pf = PF_INET,
-	.hooknum = NF_INET_PRE_ROUTING,
-	.priority = 1,
-};
+static RuleList *rule_list;
+static Rule *current_rule = NULL;
+static int index = 0;
 
 /////////////////// RULES ADT
 
@@ -140,11 +106,45 @@ void destroy_rule_list(RuleList *lst) {
 	kfree(lst);
 }
 
-/////////////////// KERNEL MODULE
+/////////////////// NETFILTER
 
-static RuleList *rule_list;
-static Rule *current_rule = NULL;
-static int index = 0;
+static unsigned int inbound_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+
+static unsigned int outbound_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+
+static unsigned int forward_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+
+static unsigned int proxy_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state);
+
+static struct nf_hook_ops inbound_ops = {
+	.hook = inbound_hook,
+	.pf = PF_INET,
+	.hooknum = NF_INET_LOCAL_IN,
+	.priority = 1,
+};
+
+static struct nf_hook_ops outbound_ops = {
+	.hook = outbound_hook,
+	.pf = PF_INET,
+	.hooknum = NF_INET_LOCAL_OUT,
+	.priority = 1,
+};
+
+static struct nf_hook_ops forward_ops = {
+	.hook = forward_hook,
+	.pf = PF_INET,
+	.hooknum = NF_INET_FORWARD,
+	.priority = 1,
+};
+
+static struct nf_hook_ops proxy_ops = {
+	.hook = proxy_hook,
+	.pf = PF_INET,
+	.hooknum = NF_INET_PRE_ROUTING,
+	.priority = 1,
+};
+
+/////////////////// KERNEL MODULE
 
 static struct proc_dir_entry *proc_dir, *add_file, *del_file, *show_file;
 
