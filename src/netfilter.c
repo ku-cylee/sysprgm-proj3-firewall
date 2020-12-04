@@ -30,7 +30,7 @@ typedef struct {
 	Rule *head, *tail;
 } RuleList;
 
-RuleList *createRuleList(void) {
+RuleList *create_rule_list(void) {
 	RuleList *lst = (RuleList *)kmalloc(sizeof(RuleList), GFP_KERNEL);
 	lst->size = 0;
 	lst->head = NULL;
@@ -38,17 +38,19 @@ RuleList *createRuleList(void) {
 	return lst;
 }
 
-Rule *findRule(RuleList *lst, int port, char type) {
+Rule *find_rule(RuleList *lst, int port, char type) {
 	Rule *rule;
 	for (rule = lst->head; rule != NULL && !(rule->port == port && rule->type == type); rule = rule->next);
 	return rule;
 }
 
-int insertRule(RuleList *lst, int port, char type) {
-	if (type != INBOUND_TYPE && type != OUTBOUND_TYPE && type != FORWARD_TYPE && type != PROXY_TYPE) return 0;
-	if (findRule(lst, port, type) != NULL) return 0;
+int insert_rule(RuleList *lst, int port, char type) {
+	Rule *rule;
 
-	Rule *rule = (Rule *)kmalloc(sizeof(Rule), GFP_KERNEL);
+	if (type != INBOUND_TYPE && type != OUTBOUND_TYPE && type != FORWARD_TYPE && type != PROXY_TYPE) return 0;
+	if (find_rule(lst, port, type) != NULL) return 0;
+
+	rule = (Rule *)kmalloc(sizeof(Rule), GFP_KERNEL);
 	rule->port = port;
 	rule->type = type;
 
@@ -60,7 +62,7 @@ int insertRule(RuleList *lst, int port, char type) {
 	return 1;
 }
 
-int removeRule(RuleList *lst, int index) {
+int remove_rule(RuleList *lst, int index) {
 	int i = 0;
 	Rule *prev = NULL, *cur = lst->head;
 
@@ -78,16 +80,16 @@ int removeRule(RuleList *lst, int index) {
 	return 1;
 }
 
-ssize_t copyRule(Rule **rulePtr, char __user *user_buffer, int *index) {
-	int len = sprintf(user_buffer, "%d(%c): %d\n", *index, (*rulePtr)->type, (*rulePtr)->port);
+ssize_t copy_rule(Rule **prule, char __user *user_buffer, int *index) {
+	int len = sprintf(user_buffer, "%d(%c): %d\n", *index, (*prule)->type, (*prule)->port);
 	(*index)++;
 	return len;
 }
 
 /////////////////// KERNEL MODULE
 
-static RuleList *ruleList;
-static Rule *currentRule = NULL;
+static RuleList *rule_list;
+static Rule *current_rule = NULL;
 static int index = 0;
 
 static struct proc_dir_entry *proc_dir, *add_file, *del_file, *show_file;
@@ -106,7 +108,7 @@ static ssize_t add_write(struct file *file, const char __user *user_buf,
 
 	sscanf(buffer, "%c %d", &type, &port);
 	len = strlen(buffer);
-	insertRule(ruleList, port, type);
+	insert_rule(rule_list, port, type);
 
 	return len;
 }
@@ -132,8 +134,8 @@ static ssize_t del_write(struct file *file, const char __user *user_buf,
 	sscanf(buffer, "%d", &index);
 	len = strlen(buffer);
 
-	removeRule(ruleList, index);
-    return count;
+	remove_rule(rule_list, index);
+	return len;
 }
 
 static const struct file_operations del_fops = {
@@ -149,15 +151,15 @@ static int show_open(struct inode *inode, struct file *file) {
 
 static ssize_t show_read(struct file *file, char __user *user_buf,
                                             size_t count, loff_t *ppos) {
-	if (index >= ruleList->size) {
+	int len;
+
+	if (index >= rule_list->size) {
 		index = 0;
 		return 0;
 	}
 
-	if (index == 0) currentRule = ruleList->head;
-	else currentRule = currentRule->next;
-
-	int len = copyRule(&currentRule, user_buf, &index);
+	current_rule = (index == 0) ? rule_list->head : current_rule->next;
+	len = copy_rule(&current_rule, user_buf, &index);
 	return len;
 }
 
@@ -168,17 +170,17 @@ static const struct file_operations show_fops = {
 };
 
 
-static int __init netfilter_init(void) {
+static int __init firewall_init(void) {
 	proc_dir = proc_mkdir(PROC_DIRNAME, NULL);
 	add_file = proc_create(ADD_FILENAME, 0777, proc_dir, &add_fops);
 	del_file = proc_create(DEL_FILENAME, 0777, proc_dir, &del_fops);
 	show_file = proc_create(SHOW_FILENAME, 0777, proc_dir, &show_fops);
 
-	ruleList = createRuleList();
+	rule_list = create_rule_list();
 	return 0;
 }
 
-static void __exit netfilter_exit(void) {
+static void __exit firewall_exit(void) {
 	remove_proc_entry(ADD_FILENAME, proc_dir);
 	remove_proc_entry(DEL_FILENAME, proc_dir);
 	remove_proc_entry(SHOW_FILENAME, proc_dir);
@@ -186,10 +188,10 @@ static void __exit netfilter_exit(void) {
 	return;
 }
 
-module_init(netfilter_init);
-module_exit(netfilter_exit);
+module_init(firewall_init);
+module_exit(firewall_exit);
 
 MODULE_AUTHOR("ku-cylee, noparkee");
-MODULE_DESCRIPTION("Custom Netfilter for COSE322 System Programming Course");
+MODULE_DESCRIPTION("Custom Firewall for COSE322 System Programming Course");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("NEW");
