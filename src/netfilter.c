@@ -10,6 +10,11 @@
 #define DEL_FILENAME "del"
 #define SHOW_FILENAME "show"
 
+#define INBOUND_TYPE  'I'
+#define OUTBOUND_TYPE 'O'
+#define FORWARD_TYPE  'F'
+#define PROXY_TYPE    'P'
+
 #define BUFFER_SIZE 64
 
 /////////////////// RULES ADT
@@ -40,6 +45,7 @@ Rule *findRule(RuleList *lst, int port, char type) {
 }
 
 int insertRule(RuleList *lst, int port, char type) {
+	if (type != INBOUND_TYPE && type != OUTBOUND_TYPE && type != FORWARD_TYPE && type != PROXY_TYPE) return 0;
 	if (findRule(lst, port, type) != NULL) return 0;
 
 	Rule *rule = (Rule *)kmalloc(sizeof(Rule), GFP_KERNEL);
