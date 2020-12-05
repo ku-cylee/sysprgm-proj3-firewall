@@ -18,7 +18,7 @@
 #define PROXY_TYPE    'P'
 
 #define PROXY_DST_ADDR "131.1.1.1"
-#define LOG_FORMAT     "%-15s:%2u,%5d,%5d,%-15s,%-15s\n"
+#define LOG_FORMAT     "%-15s:%2u,%5d,%5d,%-15s,%-15s,%d,%d,%d,%d\n"
 
 #define BUFFER_SIZE 64
 
@@ -126,7 +126,6 @@ void net_to_addr(unsigned int net, char *addr) {
 typedef struct {
 	struct iphdr *ip_header;
 	struct tcphdr *tcp_header;
-	int protocol;
 	char src_addr[128], dst_addr[128];
 	unsigned short src_port, dst_port;
 } PacketData;
@@ -143,15 +142,15 @@ PacketData *parse_socket_buffer(struct sk_buff *skb) {
 	packet->src_port = htons(packet->tcp_header->source);
 	packet->dst_port = htons(packet->tcp_header->dest);
 
-	packet->protocol = packet->ip_header->protocol;
-
 	return packet;
 }
 
 void print_log(PacketData *pkt, char *action_msg) {
 	printk(KERN_NOTICE LOG_FORMAT,
-	       action_msg, pkt->protocol,
-	       pkt->src_port, pkt->dst_port, pkt->src_addr, pkt->dst_addr);
+	       action_msg, pkt->ip_header->protocol,
+	       pkt->src_port, pkt->dst_port, pkt->src_addr, pkt->dst_addr,
+	       pkt->tcp_header->syn, pkt->tcp_header->fin,
+	       pkt->tcp_header->ack, pkt->tcp_header->rst);
 }
 
 static unsigned int inbound_hook(void *priv,
