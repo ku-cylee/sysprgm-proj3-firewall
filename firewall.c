@@ -45,8 +45,8 @@ RuleList *create_rule_list(void) {
 Rule *find_rule(RuleList *lst, unsigned short port, char type) {
 	Rule *rule;
 	for (rule = lst->head;
-         rule != NULL && !(rule->port == port && rule->type == type);
-         rule = rule->next);
+	     rule != NULL && !(rule->port == port && rule->type == type);
+	     rule = rule->next);
 	return rule;
 }
 
@@ -54,7 +54,7 @@ int insert_rule(RuleList *lst, unsigned short port, char type) {
 	Rule *rule;
 
 	if (type != INBOUND_TYPE && type != OUTBOUND_TYPE &&
-        type != FORWARD_TYPE && type != PROXY_TYPE) return 0;
+	    type != FORWARD_TYPE && type != PROXY_TYPE) return 0;
 	if (find_rule(lst, port, type) != NULL) return 0;
 
 	rule = (Rule *)kmalloc(sizeof(Rule), GFP_KERNEL);
