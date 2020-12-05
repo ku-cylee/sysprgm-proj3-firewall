@@ -1,10 +1,10 @@
-obj-m += src/firewall.o
-KERNEL_DIR = /lib/modules/$(shell uname -r)/build
+obj-m := firewall.o
+
+KDIR = /lib/modules/$(shell uname -r)/build
 PWD = $(shell pwd)
-SRC_DIR = ./src
 
 all:
-	$(MAKE) -C $(KERNEL_DIR) M=$(PWD) SRCDIR=$(SRC_DIR) modules
+	$(MAKE) -C $(KDIR) M=$(PWD) SUBDIRS=$(PWD) modules
 
 clean:
-	rm -rf *.o *.ko *.mod.* *.symvers *.order
+	rm -rf *.o *.ko *.mod.* *.symvers *.order .*.*.cmd .tmp_versions

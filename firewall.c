@@ -336,6 +336,7 @@ static int __init firewall_init(void) {
 	nf_register_hook(&outbound_ops);
 	nf_register_hook(&forward_ops);
 	nf_register_hook(&proxy_ops);
+
 	return 0;
 }
 
