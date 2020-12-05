@@ -2,8 +2,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
 #include <linux/netfilter.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -22,10 +20,6 @@
 #define LOG_FORMAT     "%-15s:%2u,%5d,%5d,%-15s,%-15s\n"
 
 #define BUFFER_SIZE 64
-
-static RuleList *rule_list;
-static Rule *current_rule = NULL;
-static int index = 0;
 
 /////////////////// RULES ADT
 
@@ -106,10 +100,16 @@ void destroy_rule_list(RuleList *lst) {
 	kfree(lst);
 }
 
+/////////////////// GLOBAL VAR DEFINITION
+
+static RuleList *rule_list;
+static Rule *current_rule = NULL;
+static int index = 0;
+
 /////////////////// NETFILTER
 
 unsigned int addr_to_net(char *addr) {
-	unsigned char arr[4];
+	unsigned int arr[4];
 	sscanf(addr, "%d.%d.%d.%d", &arr[0], &arr[1], &arr[2], &arr[3]);
 	return *(unsigned int *)arr;
 }
@@ -128,7 +128,7 @@ typedef struct {
 } PacketData;
 
 PacketData *parse_socket_buffer(struct sk_buff *skb) {
-	PacketData *packet;
+	PacketData *packet = { 0 };
 
 	packet->ip_header = ip_hdr(skb);
 	packet->tcp_header = tcp_hdr(skb);
@@ -139,7 +139,9 @@ PacketData *parse_socket_buffer(struct sk_buff *skb) {
 	packet->src_port = htons(packet->tcp_header->source);
 	packet->dst_port = htons(packet->tcp_header->dest);
 
-	packet->protocol = ip_header->protocol;
+	packet->protocol = packet->ip_header->protocol;
+
+	return packet;
 }
 
 void print_log(PacketData *pkt, char *rule_type) {
