@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/netfilter.h>
+#include <linux/netfilter_ipv4.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
 
@@ -211,7 +212,8 @@ static unsigned int proxy_hook(void *priv,
 	Rule *rule = find_rule(rule_list, packet->src_port, PROXY_TYPE);
 
 	if (rule != NULL) {
-		packet->tcp_header->dest = packet->tcp_header->source;
+		packet->ip_header->daddr = addr_to_net(PROXY_DST_ADDR);
+		packet->tcp_header->dest = packet->src_port;
 		print_log(packet, "PROXY(INBOUND)");
 	}
 
@@ -223,28 +225,28 @@ static struct nf_hook_ops inbound_ops = {
 	.hook = inbound_hook,
 	.pf = PF_INET,
 	.hooknum = NF_INET_LOCAL_IN,
-	.priority = 1,
+	.priority = NF_IP_PRI_FIRST,
 };
 
 static struct nf_hook_ops outbound_ops = {
 	.hook = outbound_hook,
 	.pf = PF_INET,
 	.hooknum = NF_INET_LOCAL_OUT,
-	.priority = 1,
+	.priority = NF_IP_PRI_FIRST,
 };
 
 static struct nf_hook_ops forward_ops = {
 	.hook = forward_hook,
 	.pf = PF_INET,
 	.hooknum = NF_INET_FORWARD,
-	.priority = 1,
+	.priority = NF_IP_PRI_FIRST,
 };
 
 static struct nf_hook_ops proxy_ops = {
 	.hook = proxy_hook,
 	.pf = PF_INET,
 	.hooknum = NF_INET_PRE_ROUTING,
-	.priority = 1,
+	.priority = NF_IP_PRI_FIRST,
 };
 
 /////////////////// KERNEL MODULE

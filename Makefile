@@ -6,6 +6,9 @@ PWD = $(shell pwd)
 all:
 	$(MAKE) -C $(KDIR) M=$(PWD) SUBDIRS=$(PWD) modules
 
+enable:
+	sudo sysctl -w net.ipv4.ip_forward=1
+
 load:
 	sudo insmod firewall.ko
 
