@@ -21,7 +21,7 @@
 
 #define BUFFER_SIZE 64
 
-/////////////////// RULES ADT
+/////////////////// RULES ADT SECTION
 
 typedef struct rule {
 	unsigned short port;
@@ -44,14 +44,17 @@ RuleList *create_rule_list(void) {
 
 Rule *find_rule(RuleList *lst, unsigned short port, char type) {
 	Rule *rule;
-	for (rule = lst->head; rule != NULL && !(rule->port == port && rule->type == type); rule = rule->next);
+	for (rule = lst->head;
+         rule != NULL && !(rule->port == port && rule->type == type);
+         rule = rule->next);
 	return rule;
 }
 
 int insert_rule(RuleList *lst, unsigned short port, char type) {
 	Rule *rule;
 
-	if (type != INBOUND_TYPE && type != OUTBOUND_TYPE && type != FORWARD_TYPE && type != PROXY_TYPE) return 0;
+	if (type != INBOUND_TYPE && type != OUTBOUND_TYPE &&
+        type != FORWARD_TYPE && type != PROXY_TYPE) return 0;
 	if (find_rule(lst, port, type) != NULL) return 0;
 
 	rule = (Rule *)kmalloc(sizeof(Rule), GFP_KERNEL);
@@ -99,13 +102,13 @@ void destroy_rule_list(RuleList *lst) {
 	kfree(lst);
 }
 
-/////////////////// GLOBAL VAR DEFINITION
+/////////////////// GLOBAL VARIABLES SECTION
 
 static RuleList *rule_list;
 static Rule *current_rule = NULL;
 static int index = 0;
 
-/////////////////// NETFILTER
+/////////////////// NETFILTER HOOKS SECTION
 
 unsigned int addr_to_net(char *addr) {
 	unsigned int arr[4];
