@@ -157,9 +157,11 @@ static unsigned int inbound_hook(void *priv,
 
 	if (rule == NULL) {
 		print_log(packet, "INBOUND");
+		kfree(packet);
 		return NF_ACCEPT;
 	} else {
 		print_log(packet, "DROP(INBOUND)");
+		kfree(packet);
 		return NF_DROP;
 	}
 }
@@ -172,9 +174,11 @@ static unsigned int outbound_hook(void *priv,
 
 	if (rule == NULL) {
 		print_log(packet, "OUTBOUND");
+		kfree(packet);
 		return NF_ACCEPT;
 	} else {
 		print_log(packet, "DROP(OUTBOUND)");
+		kfree(packet);
 		return NF_DROP;
 	}
 }
@@ -187,9 +191,11 @@ static unsigned int forward_hook(void *priv,
 
 	if (rule == NULL) {
 		print_log(packet, "FORWARD");
+		kfree(packet);
 		return NF_ACCEPT;
 	} else {
 		print_log(packet, "DROP(FORWARD)");
+		kfree(packet);
 		return NF_DROP;
 	}
 }
@@ -205,6 +211,7 @@ static unsigned int proxy_hook(void *priv,
 		print_log(packet, "PROXY(INBOUND)");
 	}
 
+	kfree(packet);
 	return NF_ACCEPT;
 }
 
