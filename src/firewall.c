@@ -91,11 +91,10 @@ ssize_t copy_rule(Rule **prule, char __user *user_buffer, int *index) {
 }
 
 void destroy_rule_list(RuleList *lst) {
-	Rule *tmp, *rule = lst->head;
-	while (rule != NULL) {
-		tmp = rule;
-		rule = rule->next;
-		kfree(tmp);
+	Rule *del_rule = NULL, *next_rule = NULL;
+	for (del_rule = lst->head; del_rule != NULL; del_rule = next_rule) {
+		next_rule = del_rule->next;
+		kfree(next_rule);
 	}
 	kfree(lst);
 }
