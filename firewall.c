@@ -60,6 +60,7 @@ int insert_rule(RuleList *lst, unsigned short port, char type) {
 	rule = (Rule *)kmalloc(sizeof(Rule), GFP_KERNEL);
 	rule->port = port;
 	rule->type = type;
+	rule->next = NULL;
 
 	if (lst->size == 0) lst->head = rule;
 	else lst->tail->next = rule;
