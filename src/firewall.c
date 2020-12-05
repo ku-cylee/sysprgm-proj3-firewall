@@ -127,7 +127,7 @@ typedef struct {
 } PacketData;
 
 PacketData *parse_socket_buffer(struct sk_buff *skb) {
-	PacketData *packet = { 0 };
+	PacketData *packet = (PacketData *)kmalloc(sizeof(PacketData), GFP_KERNEL);
 
 	packet->ip_header = ip_hdr(skb);
 	packet->tcp_header = tcp_hdr(skb);
