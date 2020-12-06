@@ -153,22 +153,30 @@ void print_log(PacketData *pkt, char *action_msg) {
 	       pkt->tcp_header->ack, pkt->tcp_header->rst);
 }
 
-static unsigned int inbound_hook(void *priv,
-                                 struct sk_buff *skb,
-                                 const struct nf_hook_state *state) {
+static unsigned int prerouting_hook(void *priv,
+                                    struct sk_buff *skb,
+                                    const struct nf_hook_state *state) {
 	PacketData *packet = parse_socket_buffer(skb);
-	int is_drop = find_rule(rule_list, packet->src_port, INBOUND_TYPE);
-	char *action_msg = is_drop ? "DROP(INBOUND)" : "INBOUND";
-	unsigned int next_action = is_drop ? NF_DROP : NF_ACCEPT;
+	char *action_msg = "INBOUND";
+	unsigned int next_action = NF_ACCEPT;
+
+	if (find_rule(rule_list, packet->src_port, INBOUND_TYPE)) {
+		action_msg = "DROP(INBOUND)";
+		next_action = NF_DROP;
+	} else if (find_rule(rule_list, packet->src_port, PROXY_TYPE)) {
+		action_msg = "PROXY(INBOUND)";
+		packet->ip_header->daddr = addr_to_net(PROXY_DST_ADDR);
+		packet->tcp_header->dest = packet->tcp_header->source;
+	}
 
 	print_log(packet, action_msg);
 	kfree(packet);
 	return next_action;
 }
 
-static unsigned int outbound_hook(void *priv,
-                                  struct sk_buff *skb,
-                                  const struct nf_hook_state *state) {
+static unsigned int postrouting_hook(void *priv,
+                                     struct sk_buff *skb,
+                                     const struct nf_hook_state *state) {
 	PacketData *packet = parse_socket_buffer(skb);
 	int is_drop = find_rule(rule_list, packet->dst_port, OUTBOUND_TYPE);
 	char *action_msg = is_drop ? "DROP(OUTBOUND)" : "OUTBOUND";
@@ -192,32 +200,17 @@ static unsigned int forward_hook(void *priv,
 	return next_action;
 }
 
-static unsigned int proxy_hook(void *priv,
-                               struct sk_buff *skb,
-                               const struct nf_hook_state *state) {
-	PacketData *packet = parse_socket_buffer(skb);
-	int is_proxy = find_rule(rule_list, packet->src_port, PROXY_TYPE);
-
-	if (is_proxy) {
-		packet->ip_header->daddr = addr_to_net(PROXY_DST_ADDR);
-		packet->tcp_header->dest = packet->src_port;
-		print_log(packet, "PROXY(INBOUND)");
-	}
-	kfree(packet);
-	return NF_ACCEPT;
-}
-
-static struct nf_hook_ops inbound_ops = {
-	.hook = inbound_hook,
+static struct nf_hook_ops prerouting_ops = {
+	.hook = prerouting_hook,
 	.pf = PF_INET,
-	.hooknum = NF_INET_LOCAL_IN,
+	.hooknum = NF_INET_PRE_ROUTING,
 	.priority = NF_IP_PRI_FIRST,
 };
 
-static struct nf_hook_ops outbound_ops = {
-	.hook = outbound_hook,
+static struct nf_hook_ops postrouting_ops = {
+	.hook = postrouting_hook,
 	.pf = PF_INET,
-	.hooknum = NF_INET_LOCAL_OUT,
+	.hooknum = NF_INET_POST_ROUTING,
 	.priority = NF_IP_PRI_FIRST,
 };
 
@@ -225,13 +218,6 @@ static struct nf_hook_ops forward_ops = {
 	.hook = forward_hook,
 	.pf = PF_INET,
 	.hooknum = NF_INET_FORWARD,
-	.priority = NF_IP_PRI_FIRST,
-};
-
-static struct nf_hook_ops proxy_ops = {
-	.hook = proxy_hook,
-	.pf = PF_INET,
-	.hooknum = NF_INET_PRE_ROUTING,
 	.priority = NF_IP_PRI_FIRST,
 };
 
@@ -324,11 +310,9 @@ static int __init firewall_init(void) {
 
 	rule_list = create_rule_list();
 
-	nf_register_hook(&inbound_ops);
-	nf_register_hook(&outbound_ops);
+	nf_register_hook(&prerouting_ops);
+	nf_register_hook(&postrouting_ops);
 	nf_register_hook(&forward_ops);
-	nf_register_hook(&proxy_ops);
-
 	return 0;
 }
 
@@ -340,10 +324,9 @@ static void __exit firewall_exit(void) {
 
 	destroy_rule_list(rule_list);
 
-	nf_unregister_hook(&inbound_ops);
-	nf_unregister_hook(&outbound_ops);
+	nf_unregister_hook(&prerouting_ops);
+	nf_unregister_hook(&postrouting_ops);
 	nf_unregister_hook(&forward_ops);
-	nf_unregister_hook(&proxy_ops);
 	return;
 }
 
