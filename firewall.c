@@ -7,20 +7,20 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 
-#define PROC_DIRNAME "group16"
-#define ADD_FILENAME "add"
-#define DEL_FILENAME "del"
-#define SHOW_FILENAME "show"
+#define PROC_DIRNAME   "group16"
+#define ADD_FILENAME   "add"
+#define DEL_FILENAME   "del"
+#define SHOW_FILENAME  "show"
 
-#define INBOUND_TYPE  'I'
-#define OUTBOUND_TYPE 'O'
-#define FORWARD_TYPE  'F'
-#define PROXY_TYPE    'P'
+#define INBOUND_TYPE   'I'
+#define OUTBOUND_TYPE  'O'
+#define FORWARD_TYPE   'F'
+#define PROXY_TYPE     'P'
 
 #define PROXY_DST_ADDR "131.1.1.1"
 #define LOG_FORMAT     "%-15s:%2u,%5d,%5d,%-15s,%-15s,%d,%d,%d,%d\n"
 
-#define BUFFER_SIZE 64
+#define BUFFER_SIZE    64
 
 /////////////////// RULES ADT SECTION
 
@@ -89,10 +89,11 @@ int remove_rule(RuleList *lst, int index) {
 	return 1;
 }
 
-ssize_t copy_rule(Rule **prule, char __user *user_buffer, int *index) {
-	int len = sprintf(user_buffer, "%d(%c): %d\n", *index, (*prule)->type, (*prule)->port);
+ssize_t copy_rule(RuleList *lst, Rule **prule, int *index, char __user *user_buffer) {
+	*prule = (*index == 0) ? lst->head : (*prule)->next;
+	sprintf(user_buffer, "%d(%c): %d\n", *index, (*prule)->type, (*prule)->port);
 	(*index)++;
-	return len;
+	return strlen(user_buffer);
 }
 
 void destroy_rule_list(RuleList *lst) {
@@ -108,17 +109,14 @@ void destroy_rule_list(RuleList *lst) {
 
 static RuleList *rule_list;
 static Rule *current_rule = NULL;
-static int index = 0;
+static int rule_index = 0;
 
 /////////////////// NETFILTER HOOKS SECTION
 
 unsigned int addr_to_net(char *addr) {
 	unsigned int i, net = 0, tmp[4];
 	sscanf(addr, "%d.%d.%d.%d", &tmp[3], &tmp[2], &tmp[1], &tmp[0]);
-	for (i = 0; i < 4; i++) {
-		net <<= 8;
-		net += tmp[i];
-	}
+	for (i = 0; i < 4; i++, net <<= 8) net += tmp[i];
 	return net;
 }
 
@@ -141,8 +139,8 @@ PacketData *parse_socket_buffer(struct sk_buff *skb) {
 	packet->ip_header = ip_hdr(skb);
 	packet->tcp_header = tcp_hdr(skb);
 
-	net_to_addr((unsigned int)packet->ip_header->saddr, packet->src_addr);
-	net_to_addr((unsigned int)packet->ip_header->daddr, packet->dst_addr);
+	net_to_addr(packet->ip_header->saddr, packet->src_addr);
+	net_to_addr(packet->ip_header->daddr, packet->dst_addr);
 
 	packet->src_port = htons(packet->tcp_header->source);
 	packet->dst_port = htons(packet->tcp_header->dest);
@@ -231,23 +229,20 @@ static struct nf_hook_ops forward_ops = {
 static struct proc_dir_entry *proc_dir, *add_file, *del_file, *show_file;
 
 static int add_open(struct inode *inode, struct file *file) {
-	printk(KERN_INFO "ADD OPEN\n");
 	return 0;
 }
 
 static ssize_t add_write(struct file *file, const char __user *user_buf,
                                             size_t count, loff_t *ppos) {
-	int len = 0;
 	unsigned short port;
 	char type, buffer[BUFFER_SIZE] = { 0 };
 
 	if (copy_from_user(buffer, user_buf, count)) return 0;
 
 	sscanf(buffer, "%c %hu", &type, &port);
-	len = strlen(buffer);
 	insert_rule(rule_list, port, type);
 
-	return len;
+	return strlen(buffer);
 }
 
 static const struct file_operations add_fops = {
@@ -257,22 +252,19 @@ static const struct file_operations add_fops = {
 };
 
 static int del_open(struct inode *inode, struct file *file) {
-	printk(KERN_INFO "DEL OPEN\n");
 	return 0;
 }
 
 static ssize_t del_write(struct file *file, const char __user *user_buf,
                                             size_t count, loff_t *ppos) {
-	int len = 0, index;
+	int index;
 	char buffer[BUFFER_SIZE] = { 0 };
 
 	if (copy_from_user(buffer, user_buf, count)) return 0;
 
 	sscanf(buffer, "%d", &index);
-	len = strlen(buffer);
-
 	remove_rule(rule_list, index);
-	return len;
+	return strlen(buffer);
 }
 
 static const struct file_operations del_fops = {
@@ -282,22 +274,16 @@ static const struct file_operations del_fops = {
 };
 
 static int show_open(struct inode *inode, struct file *file) {
-	printk(KERN_INFO "SHOW OPEN\n");
 	return 0;
 }
 
 static ssize_t show_read(struct file *file, char __user *user_buf,
                                             size_t count, loff_t *ppos) {
-	int len;
-
-	if (index >= rule_list->size) {
-		index = 0;
+	if (rule_index >= rule_list->size) {
+		rule_index = 0;
 		return 0;
 	}
-
-	current_rule = (index == 0) ? rule_list->head : current_rule->next;
-	len = copy_rule(&current_rule, user_buf, &index);
-	return len;
+	return copy_rule(rule_list, &current_rule, &rule_index, user_buf);
 }
 
 static const struct file_operations show_fops = {
