@@ -117,8 +117,8 @@ unsigned int addr_to_net(char *addr) {
 	unsigned int i, net = 0, tmp[4];
 	sscanf(addr, "%d.%d.%d.%d", &tmp[3], &tmp[2], &tmp[1], &tmp[0]);
 	for (i = 0; i < 4; i++) {
-		net += tmp[i];
 		net <<= 8;
+		net += tmp[i];
 	}
 	return net;
 }
