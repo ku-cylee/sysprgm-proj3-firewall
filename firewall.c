@@ -113,13 +113,18 @@ static int index = 0;
 /////////////////// NETFILTER HOOKS SECTION
 
 unsigned int addr_to_net(char *addr) {
-	unsigned int arr[4];
-	sscanf(addr, "%d.%d.%d.%d", &arr[0], &arr[1], &arr[2], &arr[3]);
-	return *(unsigned int *)arr;
+	unsigned int i, net = 0, tmp[4];
+	sscanf(addr, "%d.%d.%d.%d", &tmp[3], &tmp[2], &tmp[1], &tmp[0]);
+	for (i = 0; i < 4; i++) {
+		net <<= 8;
+		net += tmp[i];
+	}
+	return net;
 }
 
 void net_to_addr(unsigned int net, char *addr) {
-	unsigned char *tmp = (unsigned char *)&net;
+	unsigned int i, cmp = 255, tmp[4] = { 0 };
+	for (i = 0; i < 4; i++) tmp[i] = (net >> (i * 8)) & cmp;
 	sprintf(addr, "%u.%u.%u.%u", tmp[0], tmp[1], tmp[2], tmp[3]);
 }
 
