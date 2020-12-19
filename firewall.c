@@ -17,6 +17,7 @@
 #define FORWARD_TYPE   'F'
 #define PROXY_TYPE     'P'
 
+#define PROXY_SRC_ADDR "192.168.56.101"
 #define PROXY_DST_ADDR "131.1.1.1"
 #define LOG_FORMAT     "%-15s:%2u,%5d,%5d,%-15s,%-15s,%d,%d,%d,%d\n"
 
@@ -129,6 +130,12 @@ void net_to_addr(unsigned int net, char *addr) {
 	sprintf(addr, "%u.%u.%u.%u", tmp[0], tmp[1], tmp[2], tmp[3]);
 }
 
+int is_server_addr(char *packet_addr) {
+	unsigned short packet_addr_net = addr_to_net(packet_addr);
+	unsigned short server_addr_net = addr_to_net(PROXY_SRC_ADDR);
+	return packet_addr_net == server_addr_net;
+}
+
 typedef struct {
 	struct iphdr *ip_header;
 	struct tcphdr *tcp_header;
@@ -163,10 +170,11 @@ static unsigned int prerouting_hook(void *priv,
                                     struct sk_buff *skb,
                                     const struct nf_hook_state *state) {
 	PacketData *packet = parse_socket_buffer(skb);
+	int is_server = is_server_addr(packet->src_addr);
 	char *action_msg = "INBOUND";
 	unsigned int next_action = NF_ACCEPT;
 
-	if (find_rule(rule_list, packet->src_port, INBOUND_TYPE)) {
+	if (is_server && find_rule(rule_list, packet->src_port, INBOUND_TYPE)) {
 		action_msg = "DROP(INBOUND)";
 		next_action = NF_DROP;
 	} else if (find_rule(rule_list, packet->src_port, PROXY_TYPE)) {
@@ -184,7 +192,8 @@ static unsigned int postrouting_hook(void *priv,
                                      struct sk_buff *skb,
                                      const struct nf_hook_state *state) {
 	PacketData *packet = parse_socket_buffer(skb);
-	int is_drop = find_rule(rule_list, packet->dst_port, OUTBOUND_TYPE);
+	int is_server = is_server_addr(packet->dst_addr);
+	int is_drop = is_server && find_rule(rule_list, packet->dst_port, OUTBOUND_TYPE);
 	char *action_msg = is_drop ? "DROP(OUTBOUND)" : "OUTBOUND";
 	unsigned int next_action = is_drop ? NF_DROP : NF_ACCEPT;
 
@@ -197,7 +206,8 @@ static unsigned int forward_hook(void *priv,
                                  struct sk_buff *skb,
                                  const struct nf_hook_state *state) {
 	PacketData *packet = parse_socket_buffer(skb);
-	int is_drop = find_rule(rule_list, packet->dst_port, FORWARD_TYPE);
+	int is_server = is_server_addr(packet->src_addr);
+	int is_drop = is_server && find_rule(rule_list, packet->dst_port, FORWARD_TYPE);
 	char *action_msg = is_drop ? "DROP(FORWARD)" : "FORWARD";
 	unsigned int next_action = is_drop ? NF_DROP : NF_ACCEPT;
 
