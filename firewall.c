@@ -17,7 +17,7 @@
 #define FORWARD_TYPE   'F'
 #define PROXY_TYPE     'P'
 
-#define PROXY_SRC_ADDR "192.168.56.101"
+#define SERVER_ADDR "192.168.56.101"
 #define PROXY_DST_ADDR "131.1.1.1"
 #define LOG_FORMAT     "%-15s:%2u,%5d,%5d,%-15s,%-15s,%d,%d,%d,%d\n"
 
@@ -132,7 +132,7 @@ void net_to_addr(unsigned int net, char *addr) {
 
 int is_server_addr(char *packet_addr) {
 	unsigned short packet_addr_net = addr_to_net(packet_addr);
-	unsigned short server_addr_net = addr_to_net(PROXY_SRC_ADDR);
+	unsigned short server_addr_net = addr_to_net(SERVER_ADDR);
 	return packet_addr_net == server_addr_net;
 }
 
