@@ -17,7 +17,7 @@
 #define FORWARD_TYPE   'F'
 #define PROXY_TYPE     'P'
 
-#define SERVER_ADDR "192.168.56.101"
+#define SERVER_ADDR    "192.168.56.101"
 #define PROXY_DST_ADDR "131.1.1.1"
 #define LOG_FORMAT     "%-15s:%2u,%5d,%5d,%-15s,%-15s,%d,%d,%d,%d\n"
 
